@@ -71,15 +71,11 @@ public class PdfSigningService {
         for (int i = 1; i <= totalPages; i++) {
             ByteArrayInputStream tempInputStream = new ByteArrayInputStream(outputPdfStream.toByteArray());
             ByteArrayOutputStream tempOutputStream = new ByteArrayOutputStream();
-
             PdfReader tempReader = new PdfReader(tempInputStream);
             PdfWriter tempWriter = new PdfWriter(tempOutputStream);
             PdfSigner signer = new PdfSigner(tempReader, tempWriter, new StampingProperties().useAppendMode());
-
             signer.setFieldName("Signature" + i);
             signer.setSignDate(Calendar.getInstance());
-           
-
             // Set correct signature appearance
             PdfSignatureAppearance appearance = signer.getSignatureAppearance();
             Rectangle rect = getSignaturePosition(signer.getDocument(), i, position);
@@ -92,41 +88,40 @@ public class PdfSigningService {
             SignedAppearanceText signedAppearanceText = new SignedAppearanceText();
             signedAppearanceText.setSignedBy("SARTHI SHINDE");
             signedAppearanceText.setReasonLine(null);
-            signedAppearanceText.setLocationLine("INDIA");
+            signedAppearanceText.setLocationLine(null);
             signedAppearanceText.setSignDate(Calendar.getInstance());
             signedAppearanceText.generateDescriptionText();
-
             SignatureFieldAppearance sigAppearance = new SignatureFieldAppearance("signature_appearance");
-
+            sigAppearance.setSize(7);
+            // sigAppearance.setFontFamily("Times New Roman");
+            sigAppearance.setBold();
+            sigAppearance.setWordSpacing(1);
             sigAppearance.setContent("SARTHI SHINDE", signedAppearanceText);
+            sigAppearance.setBackgroundColor(null);
             signer.setSignatureAppearance(sigAppearance);
-
             IExternalSignature pks = new PrivateKeySignature(privateKey, "SHA256", provider.getName());
             IExternalDigest digest = new BouncyCastleDigest();
             signer.signDetached(digest, pks, new Certificate[] { certificate }, null, null, null, 0,
                     PdfSigner.CryptoStandard.CMS);
-
             outputPdfStream = tempOutputStream; // Update main stream
         }
-
         return outputPdfStream.toByteArray();
     }
 
     private Rectangle getSignaturePosition(PdfDocument pdfDocument, int pageNumber, String position) {
         float pageWidth = pdfDocument.getPage(pageNumber).getPageSize().getWidth();
         float pageHeight = pdfDocument.getPage(pageNumber).getPageSize().getHeight();
-        float width = 150; 
-        float height = 50;
-
+        float width = 130;
+        float height = 40;
         switch (position.toLowerCase()) {
             case "left-top":
                 return new Rectangle(50, pageHeight - 100, width, height);
             case "right-top":
                 return new Rectangle(pageWidth - 200, pageHeight - 100, width, height);
             case "left-bottom":
-                return new Rectangle(50, 50, width, height);
+                return new Rectangle(100, 20, width, height);
             case "right-bottom":
-                return new Rectangle(pageWidth - 200, 50, width, height);
+                return new Rectangle(pageWidth - 200, 20, width, height);
             default:
                 throw new IllegalArgumentException("Invalid signature position.");
         }
