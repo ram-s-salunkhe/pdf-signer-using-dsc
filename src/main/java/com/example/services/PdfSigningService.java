@@ -3,6 +3,8 @@ package com.example.services;
 // import java.awt.Color;
 import java.io.ByteArrayInputStream;
 import java.io.ByteArrayOutputStream;
+import java.io.IOException;
+import java.security.GeneralSecurityException;
 import java.security.PrivateKey;
 import java.security.Provider;
 import java.security.cert.Certificate;
@@ -46,7 +48,7 @@ public class PdfSigningService {
     }
 
     @SuppressWarnings("deprecation")
-    public byte[] signPdf(byte[] pdfBytes, String alias, String position) throws Exception {
+    public byte[] signPdf(byte[] pdfBytes, String alias, String position) throws IOException, GeneralSecurityException {
         // // ✅ Check if DSC is connected
         // if (!certificateLoader.isDscConnected()) {
         // throw new RuntimeException("Please, connect DSC Token");
@@ -94,16 +96,22 @@ public class PdfSigningService {
             SignatureFieldAppearance sigAppearance = new SignatureFieldAppearance("signature_appearance");
             sigAppearance.setSize(7);
             // sigAppearance.setFontFamily("Times New Roman");
-            sigAppearance.setBold();
+            // sigAppearance.setBold();
             sigAppearance.setWordSpacing(1);
             sigAppearance.setContent("SARTHI SHINDE", signedAppearanceText);
             sigAppearance.setBackgroundColor(null);
             signer.setSignatureAppearance(sigAppearance);
             IExternalSignature pks = new PrivateKeySignature(privateKey, "SHA256", provider.getName());
             IExternalDigest digest = new BouncyCastleDigest();
-            signer.signDetached(digest, pks, new Certificate[] { certificate }, null, null, null, 0,
-                    PdfSigner.CryptoStandard.CMS);
-            outputPdfStream = tempOutputStream; // Update main stream
+
+            try {
+                signer.signDetached(digest, pks, new Certificate[] { certificate }, null, null, null, 0,
+                        PdfSigner.CryptoStandard.CMS);
+            } catch (Exception e) {
+                log.error("Error signing PDF: {}", e.getMessage());
+            }
+
+            outputPdfStream = tempOutputStream; 
         }
         return outputPdfStream.toByteArray();
     }

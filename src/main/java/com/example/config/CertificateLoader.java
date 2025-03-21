@@ -2,10 +2,16 @@ package com.example.config;
 
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Component;
+
+import java.io.IOException;
 import java.security.KeyStore;
+import java.security.KeyStoreException;
+import java.security.NoSuchAlgorithmException;
 import java.security.PrivateKey;
 import java.security.Provider;
+import java.security.UnrecoverableKeyException;
 import java.security.cert.Certificate;
+import java.security.cert.CertificateException;
 import java.util.Enumeration;
 
 @Component
@@ -14,7 +20,8 @@ public class CertificateLoader {
 
     private static final String KEYSTORE_TYPE = "Windows-MY";
 
-    public PrivateKey loadPrivateKey(String alias) throws Exception {
+    public PrivateKey loadPrivateKey(String alias) throws KeyStoreException, CertificateException, IOException,
+            NoSuchAlgorithmException, UnrecoverableKeyException {
         KeyStore keyStore = KeyStore.getInstance(KEYSTORE_TYPE);
         keyStore.load(null, null); // Load Windows keystore
 
@@ -36,13 +43,15 @@ public class CertificateLoader {
         }
     }
 
-    public Certificate loadCertificate(String alias) throws Exception {
+    public Certificate loadCertificate(String alias)
+            throws KeyStoreException, NoSuchAlgorithmException, CertificateException, IOException {
         KeyStore keyStore = KeyStore.getInstance(KEYSTORE_TYPE);
         keyStore.load(null, null);
         return keyStore.getCertificate(alias);
     }
 
-    public Provider getProvider() throws Exception {
+    public Provider getProvider()
+            throws KeyStoreException, NoSuchAlgorithmException, CertificateException, IOException {
         KeyStore keyStore = KeyStore.getInstance(KEYSTORE_TYPE);
         keyStore.load(null, null);
         return keyStore.getProvider();
