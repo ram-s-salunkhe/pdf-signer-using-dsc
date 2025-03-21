@@ -1,5 +1,7 @@
 package com.example.controllers;
 
+import org.springframework.http.HttpHeaders;
+import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 import org.springframework.web.multipart.MultipartFile;
@@ -8,6 +10,11 @@ import com.example.services.PdfSigningService;
 
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+
+import java.io.ByteArrayOutputStream;
+import java.io.IOException;
+import java.util.zip.ZipEntry;
+import java.util.zip.ZipOutputStream;
 
 @RestController
 @RequestMapping("/api/pdf")
@@ -22,32 +29,51 @@ public class PdfSigningController {
         this.pdfSigningService = pdfSigningService;
     }
 
-    @PostMapping("/sign")
-    public ResponseEntity<byte[]> signPdf(
-            @RequestParam("file") MultipartFile file,
+    @PostMapping("/sign-multiple")
+    public ResponseEntity<byte[]> signMultiplePdfs(
+            @RequestParam("files") MultipartFile[] files,
             @RequestParam("position") String position) {
 
-        try {
-            // ✅ Sign the PDF
-            byte[] signedPdf = pdfSigningService.signPdf(file.getBytes(), ALIAS, position);
+        if (files == null || files.length == 0) {
+            return ResponseEntity.badRequest().body(null);
+        }
 
-            // ✅ Generate a dynamic signed filename
-            String originalFilename = file.getOriginalFilename();
-            if (originalFilename == null) {
-                originalFilename = "signed_document.pdf";
-            } else {
-                originalFilename = originalFilename.replace(".pdf", "") + "_signed.pdf";
+        try (ByteArrayOutputStream baos = new ByteArrayOutputStream();
+             ZipOutputStream zipOut = new ZipOutputStream(baos)) {
+
+            for (MultipartFile file : files) {
+                try {
+                    byte[] signedPdf = pdfSigningService.signPdf(file.getBytes(), ALIAS, position);
+
+                    String originalFilename = file.getOriginalFilename();
+                    if (originalFilename == null) {
+                        originalFilename = "signed_document.pdf";
+                    } else {
+                        originalFilename = originalFilename.replace(".pdf", "") + "_signed.pdf";
+                    }
+
+                    ZipEntry zipEntry = new ZipEntry(originalFilename);
+                    zipOut.putNextEntry(zipEntry);
+                    zipOut.write(signedPdf);
+                    zipOut.closeEntry();
+
+                } catch (Exception e) {
+                    log.error("Error signing PDF '{}': {}", file.getOriginalFilename(), e.getMessage());
+                }
             }
 
-            // ✅ Return signed PDF as a downloadable file
-            return ResponseEntity.ok()
-                    .header("Content-Disposition", "attachment; filename=\"" + originalFilename + "\"")
-                    .header("Content-Type", "application/pdf")
-                    .body(signedPdf);
+            zipOut.finish();
+            byte[] zipBytes = baos.toByteArray();
 
-        } catch (Exception e) { // ✅ Catches all possible exceptions (including those from `signPdf`)
-            log.error("Error signing PDF: {}", e.getMessage());
-            return ResponseEntity.status(500).body(null);
+            // ✅ Return signed PDFs as a zip file
+            return ResponseEntity.ok()
+                    .header(HttpHeaders.CONTENT_DISPOSITION, "attachment; filename=\"signed_pdfs.zip\"")
+                    .header(HttpHeaders.CONTENT_TYPE, "application/zip")
+                    .body(zipBytes);
+
+        } catch (IOException e) {
+            log.error("Error creating ZIP: {}", e.getMessage());
+            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).body(null);
         }
     }
 }
