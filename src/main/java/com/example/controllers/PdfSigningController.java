@@ -13,7 +13,8 @@ import org.slf4j.LoggerFactory;
 
 import java.io.ByteArrayOutputStream;
 import java.io.IOException;
-import java.security.GeneralSecurityException;
+import java.util.ArrayList;
+import java.util.List;
 import java.util.zip.ZipEntry;
 import java.util.zip.ZipOutputStream;
 
@@ -35,30 +36,44 @@ public class PdfSigningController {
             @RequestParam("position") String position) {
 
         if (files == null || files.length == 0) {
-            return ResponseEntity.badRequest().body(null);
+            return ResponseEntity.badRequest().body("File is Empty".getBytes());
         }
 
         try {
             if (files.length == 1) {
                 // ✅ Single File Case: Return as PDF
                 MultipartFile file = files[0];
-                byte[] signedPdf = pdfSigningService.signPdf(file.getBytes(), ALIAS, position);
-                System.out.println("Signed PDF: " + signedPdf);
-                String originalFilename = file.getOriginalFilename();
-                if (originalFilename == null) {
-                    originalFilename = "signed_document.pdf";
-                } else {
-                    originalFilename = originalFilename.replace(".pdf", "") + "_signed.pdf";
+                try {
+                    byte[] signedPdf = pdfSigningService.signPdf(file.getBytes(), ALIAS, position);
+                    System.out.println("Signed PDF: " + signedPdf);
+                    String originalFilename = file.getOriginalFilename();
+                    if (originalFilename == null) {
+                        originalFilename = "signed_document.pdf";
+                    } else {
+                        originalFilename = originalFilename.replace(".pdf", "") + "_signed.pdf";
+                    }
+
+                    return ResponseEntity.ok()
+                            .header(HttpHeaders.CONTENT_DISPOSITION,
+                                    "attachment; filename=\"" + originalFilename + "\"")
+                            .contentType(MediaType.APPLICATION_PDF)
+                            .body(signedPdf);
+                } catch (IllegalArgumentException e) {
+                    log.warn("PDF is already signed.", file.getOriginalFilename(), e.getMessage());
+                    return ResponseEntity.badRequest().body("This PDF is already signed.".getBytes());
+                } catch (Exception e) {
+                    log.error("Error signing PDF '{}': {}", file.getOriginalFilename(), e.getMessage());
+                    return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR)
+                            .body(("Error signing PDF: " + e.getMessage()).getBytes());
                 }
 
-                return ResponseEntity.ok()
-                        .header(HttpHeaders.CONTENT_DISPOSITION, "attachment; filename=\"" + originalFilename + "\"")
-                        .contentType(MediaType.APPLICATION_PDF)
-                        .body(signedPdf);
             }
 
             // ✅ Multiple Files Case: Create ZIP
             ByteArrayOutputStream baos = new ByteArrayOutputStream();
+
+            List<String> addedFiles = new ArrayList<>();
+
             try (ZipOutputStream zipOut = new ZipOutputStream(baos)) {
                 for (MultipartFile file : files) {
                     try {
@@ -74,12 +89,16 @@ public class PdfSigningController {
                         zipOut.putNextEntry(zipEntry);
                         zipOut.write(signedPdf);
                         zipOut.closeEntry();
-
+                        addedFiles.add(originalFilename);
                     } catch (Exception e) {
                         log.error("Error signing PDF '{}': {}", file.getOriginalFilename(), e.getMessage());
                     }
                 }
                 zipOut.finish();
+            }
+
+            if (addedFiles.size() == 0) {
+                return ResponseEntity.badRequest().body("All Files are Already Signed".getBytes());
             }
 
             return ResponseEntity.ok()
@@ -89,10 +108,6 @@ public class PdfSigningController {
 
         } catch (IOException e) {
             log.error("Error creating ZIP: {}", e.getMessage());
-            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).body(null);
-        } catch (GeneralSecurityException e) {
-            // TODO Auto-generated catch block
-            e.printStackTrace();
             return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).body(null);
         }
     }

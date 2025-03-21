@@ -39,14 +39,12 @@ export default function PdfSigner() {
     formData.append("position", position);
   
     try {
-      const response = await axios.post("http://localhost:8080/api/pdf/sign-multiple", formData, {
+      const response = await axios.post("http://localhost:8081/api/pdf/sign-multiple", formData, {
         headers: { "Content-Type": "multipart/form-data" },
         responseType: "blob", // ✅ Receive response as a binary file (ZIP or PDF)
-      });
-
+      }); 
       // ✅ Get content type from response headers
       const contentType = response.headers["content-type"];
-      console.log("Response Content-Type:", contentType);
 
       // ✅ Determine the correct file extension
       let fileExtension = contentType === "application/pdf" ? "pdf" : "zip";
@@ -67,10 +65,13 @@ export default function PdfSigner() {
       link.click();
       document.body.removeChild(link);
   
-      toast.success("✅ PDFs signed and downloaded successfully!");
+      toast.success("PDFs signed and downloaded successfully!");
     } catch (error) {
-      console.error("Error signing PDFs:", error);
-      toast.error("❌ Failed to sign PDFs");
+      console.log("Error signing PDFs:", error.message);
+      console.log("Error signing PDFs:",await error.response.data.text());
+      const alreadySigned = await error?.response?.data.text() || "❌ Failed to sign PDFs";
+
+      toast.error(alreadySigned);
     }
   
     setIsLoading(false);
