@@ -13,8 +13,9 @@ import org.slf4j.LoggerFactory;
 
 import java.io.ByteArrayOutputStream;
 import java.io.IOException;
-import java.util.ArrayList;
-import java.util.List;
+import java.security.KeyStore;
+import java.util.*;
+import java.security.cert.X509Certificate;
 import java.util.zip.ZipEntry;
 import java.util.zip.ZipOutputStream;
 
@@ -24,16 +25,67 @@ public class PdfSigningController {
 
     private static final Logger log = LoggerFactory.getLogger(PdfSigningController.class);
     private final PdfSigningService pdfSigningService;
-    private static final String ALIAS = "SARTHI SHINDE"; // ✅ DSC Alias
 
     public PdfSigningController(PdfSigningService pdfSigningService) {
         this.pdfSigningService = pdfSigningService;
     }
 
+    // ✅ Fetch available certificates
+    @GetMapping("/dsc-list")
+    public List<Map<String, String>> getAvailableCertificates() {
+        List<Map<String, String>> dscList = new ArrayList<>();
+
+        try {
+            KeyStore keyStore = KeyStore.getInstance("Windows-MY");
+            keyStore.load(null, null);
+
+            Enumeration<String> aliases = keyStore.aliases();
+            while (aliases.hasMoreElements()) {
+                String alias = aliases.nextElement();
+                X509Certificate cert = (X509Certificate) keyStore.getCertificate(alias);
+
+                if (cert == null) {
+                    throw new RuntimeException("No certificate selected for signing.");
+                }
+
+                if (cert != null) {
+                    Map<String, String> certInfo = new HashMap<>();
+                    certInfo.put("alias", alias);
+                    certInfo.put("name", cert.getSubjectDN().getName());
+                    dscList.add(certInfo);
+                }
+            }
+        } catch (Exception e) {
+            log.error("Error fetching DSC list: {}", e.getMessage());
+        }
+
+        return dscList;
+    }
+
+    // ✅ Store selected certificate
+    @PostMapping("/select-dsc")
+    public ResponseEntity<String> selectCertificate(@RequestBody Map<String, String> request) {
+        String selectedAlias = request.get("alias");
+
+        if (selectedAlias == null || selectedAlias.isEmpty()) {
+            return ResponseEntity.badRequest().body("No certificate selected.");
+        }
+
+        return ResponseEntity.ok("Certificate Selected: " + selectedAlias);
+    }
+
     @PostMapping("/sign-multiple")
     public ResponseEntity<byte[]> signMultiplePdfs(
             @RequestParam("files") MultipartFile[] files,
-            @RequestParam("position") String position) {
+            @RequestParam("position") String position,
+            @RequestParam("alias") String alias) {
+
+        System.out.println("📥 Received Alias: " + alias); // ✅ Debugging alias
+        System.out.println("📥 Received Position: " + position); // ✅ Debugging position
+        System.out.println("📥 Received Files: " + files.length); // ✅ Debugging files
+        if (alias == null || alias.isEmpty()) {
+            return ResponseEntity.badRequest().body("No alias are provided".getBytes());
+        }
 
         if (files == null || files.length == 0) {
             return ResponseEntity.badRequest().body("File is Empty".getBytes());
@@ -44,8 +96,9 @@ public class PdfSigningController {
                 // ✅ Single File Case: Return as PDF
                 MultipartFile file = files[0];
                 try {
-                    byte[] signedPdf = pdfSigningService.signPdf(file.getBytes(), ALIAS, position);
-                    System.out.println("Signed PDF: " + signedPdf);
+                    System.out.println("selectedAlias >>> " + alias);
+                    byte[] signedPdf = pdfSigningService.signPdf(file.getBytes(), alias, position);
+
                     String originalFilename = file.getOriginalFilename();
                     if (originalFilename == null) {
                         originalFilename = "signed_document.pdf";
@@ -77,7 +130,7 @@ public class PdfSigningController {
             try (ZipOutputStream zipOut = new ZipOutputStream(baos)) {
                 for (MultipartFile file : files) {
                     try {
-                        byte[] signedPdf = pdfSigningService.signPdf(file.getBytes(), ALIAS, position);
+                        byte[] signedPdf = pdfSigningService.signPdf(file.getBytes(), alias, position);
                         String originalFilename = file.getOriginalFilename();
                         if (originalFilename == null) {
                             originalFilename = "signed_document.pdf";

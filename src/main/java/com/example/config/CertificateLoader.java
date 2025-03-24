@@ -6,12 +6,15 @@ import org.springframework.stereotype.Component;
 import java.io.IOException;
 import java.security.KeyStore;
 import java.security.KeyStoreException;
+import java.security.MessageDigest;
 import java.security.NoSuchAlgorithmException;
 import java.security.PrivateKey;
 import java.security.Provider;
 import java.security.UnrecoverableKeyException;
 import java.security.cert.Certificate;
+import java.security.cert.CertificateEncodingException;
 import java.security.cert.CertificateException;
+import java.security.cert.X509Certificate;
 import java.util.Enumeration;
 
 @Component
@@ -55,6 +58,58 @@ public class CertificateLoader {
         KeyStore keyStore = KeyStore.getInstance(KEYSTORE_TYPE);
         keyStore.load(null, null);
         return keyStore.getProvider();
+    }
+
+     /**
+     * Get thumbprints of all certificates in Windows keystore.
+     */
+    public void getCertificateThumbprints() throws Exception {
+        KeyStore keyStore = KeyStore.getInstance(KEYSTORE_TYPE);
+        keyStore.load(null, null);
+
+        Enumeration<String> aliases = keyStore.aliases();
+        while (aliases.hasMoreElements()) {
+            String alias = aliases.nextElement();
+            Certificate cert = keyStore.getCertificate(alias);
+            if (cert instanceof X509Certificate) {
+                String thumbprint = getThumbprint((X509Certificate) cert);
+                log.info("Alias: {}, Thumbprint: {}", alias, thumbprint);
+            }
+        }
+    }
+
+    /**
+     * Load PrivateKey using certificate thumbprint.
+     */
+    public PrivateKey loadPrivateKeyByThumbprint(String thumbprint) throws Exception {
+        KeyStore keyStore = KeyStore.getInstance(KEYSTORE_TYPE);
+        keyStore.load(null, null);
+
+        Enumeration<String> aliases = keyStore.aliases();
+        while (aliases.hasMoreElements()) {
+            String alias = aliases.nextElement();
+            Certificate cert = keyStore.getCertificate(alias);
+            if (cert instanceof X509Certificate) {
+                String certThumbprint = getThumbprint((X509Certificate) cert);
+                if (certThumbprint.equalsIgnoreCase(thumbprint)) {
+                    return (PrivateKey) keyStore.getKey(alias, null);
+                }
+            }
+        }
+        throw new RuntimeException("Certificate with thumbprint not found: " + thumbprint);
+    }
+
+    /**
+     * Compute the SHA-1 thumbprint of a certificate.
+     */
+    private String getThumbprint(X509Certificate cert) throws NoSuchAlgorithmException, CertificateEncodingException {
+        MessageDigest md = MessageDigest.getInstance("SHA-1");
+        byte[] digest = md.digest(cert.getEncoded());
+        StringBuilder sb = new StringBuilder();
+        for (byte b : digest) {
+            sb.append(String.format("%02X", b));
+        }
+        return sb.toString();
     }
 
 }

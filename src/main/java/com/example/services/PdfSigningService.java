@@ -8,7 +8,9 @@ import java.security.GeneralSecurityException;
 import java.security.PrivateKey;
 import java.security.Provider;
 import java.security.cert.Certificate;
+import java.security.Security;
 import java.util.Calendar;
+import org.bouncycastle.jce.provider.BouncyCastleProvider;
 
 import org.springframework.stereotype.Service;
 
@@ -83,12 +85,9 @@ public class PdfSigningService {
             Rectangle rect = getSignaturePosition(signer.getDocument(), i, position);
             appearance.setPageRect(rect);
             appearance.setPageNumber(i);
-            // appearance.setReason("Digitally signed by Sarthi Shinde");
-            // appearance.setLocation("India");
-            // appearance.setLayer2Text("Signed by Sarthi Shinde\nDate: " +
-            // Calendar.getInstance().getTime());
+      
             SignedAppearanceText signedAppearanceText = new SignedAppearanceText();
-            signedAppearanceText.setSignedBy("SARTHI SHINDE");
+            signedAppearanceText.setSignedBy(alias);
             signedAppearanceText.setReasonLine(null);
             signedAppearanceText.setLocationLine(null);
             signedAppearanceText.setSignDate(Calendar.getInstance());
@@ -98,15 +97,32 @@ public class PdfSigningService {
             // sigAppearance.setFontFamily("Times New Roman");
             // sigAppearance.setBold();
             sigAppearance.setWordSpacing(1);
-            sigAppearance.setContent("SARTHI SHINDE", signedAppearanceText);
+            sigAppearance.setContent(alias, signedAppearanceText);
             sigAppearance.setBackgroundColor(null);
             signer.setSignatureAppearance(sigAppearance);
             IExternalSignature pks = new PrivateKeySignature(privateKey, "SHA256", provider.getName());
+            // IExternalSignature pks = new PrivateKeySignature(privateKey, "SHA1withRSA", provider.getName());
             IExternalDigest digest = new BouncyCastleDigest();
+
+            // Provider bcProvider = new BouncyCastleProvider();
+            // Security.addProvider(bcProvider);
+            // IExternalSignature pks = new PrivateKeySignature(privateKey, "SHA256withRSA", bcProvider.getName());
+
+            // provider.getServices());
+
+            if (privateKey == null) {
+                log.error("Private Key is NULL. Cannot proceed with signing.");
+                throw new GeneralSecurityException("Private Key is NULL.");
+            }
+            
+            log.info("Using provider: " + provider.getName());
+            // IExternalSignature pks = new PrivateKeySignature(privateKey, "SHA256", provider.getName());
+
 
             try {
                 signer.signDetached(digest, pks, new Certificate[] { certificate }, null, null, null, 0,
                         PdfSigner.CryptoStandard.CMS);
+
             } catch (Exception e) {
                 log.error("Error signing PDF: {}", e.getMessage());
             }
