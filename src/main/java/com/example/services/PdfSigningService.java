@@ -8,9 +8,7 @@ import java.security.GeneralSecurityException;
 import java.security.PrivateKey;
 import java.security.Provider;
 import java.security.cert.Certificate;
-import java.security.Security;
 import java.util.Calendar;
-import org.bouncycastle.jce.provider.BouncyCastleProvider;
 
 import org.springframework.stereotype.Service;
 
@@ -50,14 +48,22 @@ public class PdfSigningService {
     }
 
     @SuppressWarnings("deprecation")
-    public byte[] signPdf(byte[] pdfBytes, String alias, String position) throws IOException, GeneralSecurityException {
-        // // ✅ Check if DSC is connected
-        // if (!certificateLoader.isDscConnected()) {
-        // throw new RuntimeException("Please, connect DSC Token");
-        // }
+    public byte[] signPdf(byte[] pdfBytes, String alias, String thumbprint, String position) throws IOException, GeneralSecurityException {
 
-        PrivateKey privateKey = certificateLoader.loadPrivateKey(alias);
-        Certificate certificate = certificateLoader.loadCertificate(alias);
+        PrivateKey privateKey;
+        try {
+            privateKey = certificateLoader.loadPrivateKeyByThumbprint(thumbprint);
+        } catch (Exception e) {
+            log.error("Error loading private key: {}", e.getMessage());
+            throw new GeneralSecurityException("Failed to load private key.", e);
+        }
+        Certificate certificate;
+        try {
+            certificate = certificateLoader.loadCertificateByThumbprint(thumbprint);
+        } catch (Exception e) {
+            log.error("Error loading certificate: {}", e.getMessage());
+            throw new GeneralSecurityException("Failed to load certificate.", e);
+        }
         Provider provider = certificateLoader.getProvider();
 
         ByteArrayInputStream inputPdfStream = new ByteArrayInputStream(pdfBytes);

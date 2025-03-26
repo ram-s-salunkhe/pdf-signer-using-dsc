@@ -6,6 +6,7 @@ import org.springframework.http.MediaType;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 import org.springframework.web.multipart.MultipartFile;
+import com.example.config.CertificateLoader;
 import com.example.services.PdfSigningService;
 
 import org.slf4j.Logger;
@@ -30,74 +31,77 @@ public class PdfSigningController {
         this.pdfSigningService = pdfSigningService;
     }
 
-    // ✅ Fetch available certificates
-    @GetMapping("/dsc-list")
-    public List<Map<String, String>> getAvailableCertificates() {
-        List<Map<String, String>> dscList = new ArrayList<>();
+  
+    // ✅ Fetch available certificates with thumbprints
+@GetMapping("/dsc-list")
+public List<Map<String, String>> getAvailableCertificates() {
+    List<Map<String, String>> dscList = new ArrayList<>();
 
-        try {
-            KeyStore keyStore = KeyStore.getInstance("Windows-MY");
-            keyStore.load(null, null);
+    try {
+        KeyStore keyStore = KeyStore.getInstance("Windows-MY");
+        keyStore.load(null, null);
 
-            Enumeration<String> aliases = keyStore.aliases();
-            while (aliases.hasMoreElements()) {
-                String alias = aliases.nextElement();
-                X509Certificate cert = (X509Certificate) keyStore.getCertificate(alias);
+        Enumeration<String> aliases = keyStore.aliases();
+        while (aliases.hasMoreElements()) {
+            String alias = aliases.nextElement();
+            X509Certificate cert = (X509Certificate) keyStore.getCertificate(alias);
 
-                if (cert == null) {
-                    throw new RuntimeException("No certificate selected for signing.");
-                }
-
-                if (cert != null) {
-                    Map<String, String> certInfo = new HashMap<>();
-                    certInfo.put("alias", alias);
-                    certInfo.put("name", cert.getSubjectDN().getName());
-                    dscList.add(certInfo);
-                }
+            if (cert != null) {
+                Map<String, String> certInfo = new HashMap<>();
+                certInfo.put("alias", alias);
+                certInfo.put("name", cert.getSubjectDN().getName());
+                certInfo.put("thumbprint", CertificateLoader.getThumbprint(cert)); // ✅ Add thumbprint
+                dscList.add(certInfo);
             }
-        } catch (Exception e) {
-            log.error("Error fetching DSC list: {}", e.getMessage());
         }
-
-        return dscList;
+    } catch (Exception e) {
+        log.error("Error fetching DSC list: {}", e.getMessage());
     }
 
-    // ✅ Store selected certificate
-    @PostMapping("/select-dsc")
-    public ResponseEntity<String> selectCertificate(@RequestBody Map<String, String> request) {
-        String selectedAlias = request.get("alias");
+    return dscList;
+}
 
-        if (selectedAlias == null || selectedAlias.isEmpty()) {
-            return ResponseEntity.badRequest().body("No certificate selected.");
-        }
 
-        return ResponseEntity.ok("Certificate Selected: " + selectedAlias);
+ // ✅ Store selected certificate using thumbprint
+@PostMapping("/select-dsc")
+public ResponseEntity<String> selectCertificate(@RequestBody Map<String, String> request) {
+    String selectedThumbprint = request.get("thumbprint");
+
+    if (selectedThumbprint == null || selectedThumbprint.isEmpty()) {
+        return ResponseEntity.badRequest().body("No certificate selected.");
     }
+
+    return ResponseEntity.ok("Certificate Selected: " + selectedThumbprint);
+}
 
     @PostMapping("/sign-multiple")
     public ResponseEntity<byte[]> signMultiplePdfs(
             @RequestParam("files") MultipartFile[] files,
             @RequestParam("position") String position,
-            @RequestParam("alias") String alias) {
+            @RequestParam("thumbprint") String thumbprint) {
 
-        System.out.println("📥 Received Alias: " + alias); // ✅ Debugging alias
-        System.out.println("📥 Received Position: " + position); // ✅ Debugging position
-        System.out.println("📥 Received Files: " + files.length); // ✅ Debugging files
-        if (alias == null || alias.isEmpty()) {
-            return ResponseEntity.badRequest().body("No alias are provided".getBytes());
-        }
-
+      
         if (files == null || files.length == 0) {
             return ResponseEntity.badRequest().body("File is Empty".getBytes());
         }
 
         try {
+              // ✅ Get Alias from Thumbprint
+        String alias;
+        try {
+            alias = CertificateLoader.getAliasByThumbprint(thumbprint);
+        } catch (Exception e) {
+            log.error("Error fetching alias by thumbprint: {}", e.getMessage());
+            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR)
+            .body(("Error fetching alias: " + e.getMessage()).getBytes());
+        }
+       
+
             if (files.length == 1) {
                 // ✅ Single File Case: Return as PDF
                 MultipartFile file = files[0];
                 try {
-                    System.out.println("selectedAlias >>> " + alias);
-                    byte[] signedPdf = pdfSigningService.signPdf(file.getBytes(), alias, position);
+                    byte[] signedPdf = pdfSigningService.signPdf(file.getBytes(), alias, thumbprint, position);
 
                     String originalFilename = file.getOriginalFilename();
                     if (originalFilename == null) {
@@ -130,7 +134,7 @@ public class PdfSigningController {
             try (ZipOutputStream zipOut = new ZipOutputStream(baos)) {
                 for (MultipartFile file : files) {
                     try {
-                        byte[] signedPdf = pdfSigningService.signPdf(file.getBytes(), alias, position);
+                        byte[] signedPdf = pdfSigningService.signPdf(file.getBytes(), alias, thumbprint, position);
                         String originalFilename = file.getOriginalFilename();
                         if (originalFilename == null) {
                             originalFilename = "signed_document.pdf";

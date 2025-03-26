@@ -19,7 +19,7 @@ export default function PdfSigner() {
       const response = await axios.get("http://localhost:8081/api/pdf/dsc-list");
       setDscList(response.data);
       if (response.data.length > 0) {
-        setSelectedDsc(response.data[0]); // Default to first available DSC
+        setSelectedDsc(response.data[0].thumbprint); // Default to first available DSC
       }
     } catch (error) {
       console.error("Error fetching DSCs:", error);
@@ -32,50 +32,17 @@ export default function PdfSigner() {
     setFiles(selectedFiles.length > 1 ? Array.from(selectedFiles) : selectedFiles);
   };
 
-  // const handleUpload = async () => {
-  //   if (!files || (files instanceof FileList && files.length === 0)) {
-  //     toast.warn("⚠️ Please select at least one PDF file to sign.");
-  //     return;
-  //   }
-  //   if (!selectedDsc) {
-  //     toast.warn("⚠️ Please select a DSC certificate.");
-  //     return;
-  //   }
-  
-  //   setIsLoading(true);
-  //   const formData = new FormData();
-  //   const fileArray = files instanceof FileList ? Array.from(files) : files;
-  
-  //   for (let file of fileArray) {
-  //     formData.append("files", file);
-  //   }
-  //   formData.append("position", position);
-  //   formData.append("alias", selectedDsc); // ✅ Ensure alias is a string
-  
-  //   try {
-  //      await axios.post("http://localhost:8081/api/pdf/sign-multiple", formData, {
-  //       headers: { "Content-Type": "multipart/form-data" },
-  //       responseType: "blob",
-  //     });
-      
-  //     // ✅ Handle file download logic...
-      
-  //     toast.success("PDFs signed and downloaded successfully!");
-  //   } catch (error) {
-  //     console.error("Error signing PDFs:", await error.response.data.text());
-  //     toast.error("❌ Failed to sign PDFs");
-  //   }
-  
-  //   setIsLoading(false);
-  // };
-
   const handleUpload = async () => {
     if (!files || (files instanceof FileList && files.length === 0)) {
-      toast.warn("⚠️ Please select at least one PDF file to sign.");
+      toast.warn(" Please select at least one PDF file to sign.");
       return;
     }
-    setIsLoading(true);
+    if (!selectedDsc) {
+      toast.warn(" Please select a DSC certificate.");
+      return;
+    }
   
+    setIsLoading(true);
     const formData = new FormData();
     const fileArray = files instanceof FileList ? Array.from(files) : files;
   
@@ -83,25 +50,14 @@ export default function PdfSigner() {
       formData.append("files", file);
     }
     formData.append("position", position);
-    formData.append("alias", "SARTHI SHINDE"); // ✅ Testing with a hardcoded alias
-  
-    // ✅ Convert FormData to JSON for debugging
-    let debugObject = {};
-    formData.forEach((value, key) => {
-      if (value instanceof File) {
-        debugObject[key] = value.name; // Print file names instead of binary data
-      } else {
-        debugObject[key] = value;
-      }
-    });
-  
-    console.log("📨 Sending FormData:", debugObject); // Check if alias is correctly added
+    formData.append("thumbprint", selectedDsc); // ✅ Ensure alias is a string
   
     try {
-      let response = await axios.post("http://localhost:8081/api/pdf/sign-multiple", formData, {
+      const response =  await axios.post("http://localhost:8081/api/pdf/sign-multiple", formData, {
         headers: { "Content-Type": "multipart/form-data" },
-        responseType: "blob", // ✅ Receive response as a binary file (ZIP or PDF)
-      }); 
+        responseType: "blob",
+      });
+      
       // ✅ Get content type from response headers
       const contentType = response.headers["content-type"];
 
@@ -123,16 +79,16 @@ export default function PdfSigner() {
       document.body.appendChild(link);
       link.click();
       document.body.removeChild(link);
-  
+
       toast.success("PDFs signed and downloaded successfully!");
     } catch (error) {
-      console.error("❌ Error signing PDFs:", error);
-      toast.error(error.response?.data || "Failed to sign PDFs");
+      console.log("Error signing PDFs:", error.response.data.text());
+      const respErr = await error.response.data.text()
+      toast.error( respErr ||`❌ Failed to sign PDFs`);
     }
   
     setIsLoading(false);
   };
-  
   
   
   return (
@@ -162,19 +118,18 @@ export default function PdfSigner() {
 
         {/* ✅ DSC Selection Dropdown */}
         <select
-  onChange={(e) => setSelectedDsc(e.target.value)} // ✅ Store only alias
-  value={selectedDsc}
-  className="mb-3 border p-2 w-full"
->
-  <option value="">Select DSC</option>
-  {dscList.map((dsc) => (
-    <option key={dsc.alias} value={dsc.alias}> 
-      {dsc.name} 
-    </option>
-  ))}
-</select>
-
-
+          onChange={(e) => setSelectedDsc(e.target.value)} // ✅ Store only alias
+          value={selectedDsc}
+          className="mb-3 border p-2 w-full"
+        >
+          <option value="" disabled>Select certificate</option>
+          {dscList.map((dsc) => ( 
+            <option key={dsc.thumbprint} value={dsc.thumbprint}> 
+              {dsc.alias} - {dsc.thumbprint.slice(-4)} 
+         
+            </option>
+          ))}
+        </select>
 
         <button
           onClick={handleUpload}

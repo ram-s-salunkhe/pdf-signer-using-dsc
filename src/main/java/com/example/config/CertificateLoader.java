@@ -2,7 +2,6 @@ package com.example.config;
 
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Component;
-
 import java.io.IOException;
 import java.security.KeyStore;
 import java.security.KeyStoreException;
@@ -102,7 +101,7 @@ public class CertificateLoader {
     /**
      * Compute the SHA-1 thumbprint of a certificate.
      */
-    private String getThumbprint(X509Certificate cert) throws NoSuchAlgorithmException, CertificateEncodingException {
+    public static String getThumbprint(X509Certificate cert) throws NoSuchAlgorithmException, CertificateEncodingException {
         MessageDigest md = MessageDigest.getInstance("SHA-1");
         byte[] digest = md.digest(cert.getEncoded());
         StringBuilder sb = new StringBuilder();
@@ -111,5 +110,46 @@ public class CertificateLoader {
         }
         return sb.toString();
     }
+
+    public Certificate loadCertificateByThumbprint(String thumbprint) throws Exception {
+        KeyStore keyStore = KeyStore.getInstance(KEYSTORE_TYPE);
+        keyStore.load(null, null);
+    
+        Enumeration<String> aliases = keyStore.aliases();
+        while (aliases.hasMoreElements()) {
+            String alias = aliases.nextElement();
+            Certificate cert = keyStore.getCertificate(alias);
+            if (cert instanceof X509Certificate) {
+                String certThumbprint = getThumbprint((X509Certificate) cert);
+                if (certThumbprint.equalsIgnoreCase(thumbprint)) {
+                    return cert;
+                }
+            }
+        }
+        throw new RuntimeException("Certificate with thumbprint not found: " + thumbprint);
+    }
+
+    // ✅ Get Alias (Certificate Name) from Thumbprint
+    public static String getAliasByThumbprint(String thumbprint) throws Exception {
+        KeyStore keyStore = KeyStore.getInstance("Windows-MY");
+        keyStore.load(null, null); // Load the Windows Certificate Store
+
+        Enumeration<String> aliases = keyStore.aliases();
+        while (aliases.hasMoreElements()) {
+            String alias = aliases.nextElement();
+            Certificate cert = keyStore.getCertificate(alias);
+
+            if (cert instanceof X509Certificate) {
+                X509Certificate x509Cert = (X509Certificate) cert;
+                String certThumbprint = getThumbprint(x509Cert); // Compute thumbprint
+
+                if (thumbprint.equalsIgnoreCase(certThumbprint)) {
+                    return alias; // ✅ Return the alias if thumbprint matches
+                }
+            }
+        }
+        throw new Exception("Certificate with given thumbprint not found");
+    }
+    
 
 }
