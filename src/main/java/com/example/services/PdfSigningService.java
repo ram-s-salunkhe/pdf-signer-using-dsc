@@ -9,10 +9,13 @@ import java.security.PrivateKey;
 import java.security.Provider;
 import java.security.cert.Certificate;
 import java.util.Calendar;
+import java.util.Arrays;
+import java.security.Security;
 
 import org.springframework.stereotype.Service;
 
 import com.example.config.CertificateLoader;
+// import com.example.utils.SecurityProviderUtil;
 import com.itextpdf.forms.fields.properties.SignedAppearanceText;
 import com.itextpdf.forms.form.element.SignatureFieldAppearance;
 // import com.itextpdf.forms.fields.properties.SignedAppearanceText;
@@ -53,6 +56,10 @@ public class PdfSigningService {
         PrivateKey privateKey;
         try {
             privateKey = certificateLoader.loadPrivateKeyByThumbprint(thumbprint);
+            if (privateKey == null) {
+                log.error("Private Key is NULL for thumbprint: {}", thumbprint);
+                throw new GeneralSecurityException("Private Key is NULL.");
+            }
         } catch (Exception e) {
             log.error("Error loading private key: {}", e.getMessage());
             throw new GeneralSecurityException("Failed to load private key.", e);
@@ -107,30 +114,18 @@ public class PdfSigningService {
             sigAppearance.setBackgroundColor(null);
             signer.setSignatureAppearance(sigAppearance);
             IExternalSignature pks = new PrivateKeySignature(privateKey, "SHA256", provider.getName());
-            // IExternalSignature pks = new PrivateKeySignature(privateKey, "SHA1withRSA", provider.getName());
             IExternalDigest digest = new BouncyCastleDigest();
 
-            // Provider bcProvider = new BouncyCastleProvider();
-            // Security.addProvider(bcProvider);
-            // IExternalSignature pks = new PrivateKeySignature(privateKey, "SHA256withRSA", bcProvider.getName());
+            log.info("Using provider: {}", provider.getName());
+            log.info("Available Providers: {}", Arrays.toString(Security.getProviders()));
 
-            // provider.getServices());
-
-            if (privateKey == null) {
-                log.error("Private Key is NULL. Cannot proceed with signing.");
-                throw new GeneralSecurityException("Private Key is NULL.");
-            }
-            
-            log.info("Using provider: " + provider.getName());
-            // IExternalSignature pks = new PrivateKeySignature(privateKey, "SHA256", provider.getName());
-
-
+                        
             try {
                 signer.signDetached(digest, pks, new Certificate[] { certificate }, null, null, null, 0,
                         PdfSigner.CryptoStandard.CMS);
-
             } catch (Exception e) {
-                log.error("Error signing PDF: {}", e.getMessage());
+                log.error("Error signing PDF >>: {}", e);
+                throw new GeneralSecurityException(e.getMessage());
             }
 
             outputPdfStream = tempOutputStream; 

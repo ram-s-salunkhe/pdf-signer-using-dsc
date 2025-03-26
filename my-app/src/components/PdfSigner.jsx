@@ -122,18 +122,20 @@ export default function PdfSigner() {
           value={selectedDsc}
           className="mb-3 border p-2 w-full max-w-full overflow-hidden text-ellipsis"
         >
-          <option value="">Select certificate</option>
+          <option value="" disabled>Select certificate</option>
           {dscList.map((dsc) => {
             // Extract CN (Common Name)
             const match = dsc.name.match(/CN=([^,]*)/);
             const commonName = match ? match[1] : dsc.name;
-            
+
             // Extract last 4 digits of the thumbprint
             const thumbprintLast4 = dsc.thumbprint.slice(-4);
             
             return (
-              <option key={dsc.thumbprint} value={dsc.thumbprint}>
-                {commonName} - {thumbprintLast4}
+              <option key={dsc.thumbprint} value={dsc.thumbprint} 
+              style={{ color: dsc.isExpired === "true" ? "red" : "green" }}
+              >
+                {commonName} - {thumbprintLast4} (Expires: {dsc.expiryDate})
               </option>
             );
           })}

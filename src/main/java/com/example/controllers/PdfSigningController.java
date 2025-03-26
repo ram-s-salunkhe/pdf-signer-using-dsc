@@ -17,6 +17,7 @@ import java.io.IOException;
 import java.security.KeyStore;
 import java.util.*;
 import java.security.cert.X509Certificate;
+import java.text.SimpleDateFormat;
 import java.util.zip.ZipEntry;
 import java.util.zip.ZipOutputStream;
 
@@ -47,15 +48,24 @@ public List<Map<String, String>> getAvailableCertificates() {
         keyStore.load(null, null);
 
         Enumeration<String> aliases = keyStore.aliases();
+        SimpleDateFormat dateFormat = new SimpleDateFormat("dd-MM-yyyy"); // ✅ Format changed to dd-MM-yyyy
+        Date today = new Date();
+
         while (aliases.hasMoreElements()) {
             String alias = aliases.nextElement();
             X509Certificate cert = (X509Certificate) keyStore.getCertificate(alias);
 
             if (cert != null) {
+                Date expiryDate = cert.getNotAfter();
+                boolean isExpired = expiryDate.before(today); // Check if expired
+
                 Map<String, String> certInfo = new HashMap<>();
                 certInfo.put("alias", alias);
                 certInfo.put("name", cert.getSubjectDN().getName());
                 certInfo.put("thumbprint", CertificateLoader.getThumbprint(cert)); // ✅ Add thumbprint
+                certInfo.put("expiryDate", dateFormat.format(expiryDate)); // ✅ Add expiry date
+                certInfo.put("isExpired", String.valueOf(isExpired)); // ✅ Add expiry status
+
                 dscList.add(certInfo);
             }
         }
@@ -95,7 +105,6 @@ public ResponseEntity<String> selectCertificate(@RequestBody Map<String, String>
         String alias;
         try {
             alias = CertificateLoader.getAliasByThumbprint(thumbprint);
-            System.out.println("Alias:  >>>" + alias);           
         } catch (Exception e) {
             log.error("Error fetching alias by thumbprint: {}", e.getMessage());
             return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR)
@@ -162,7 +171,7 @@ public ResponseEntity<String> selectCertificate(@RequestBody Map<String, String>
             }
 
             if (addedFiles.size() == 0) {
-                return ResponseEntity.badRequest().body("All Files are Already Signed".getBytes());
+                return ResponseEntity.badRequest().body("All PDF's are Already Signed".getBytes());
             }
 
             return ResponseEntity.ok()
