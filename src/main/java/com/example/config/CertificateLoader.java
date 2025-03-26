@@ -130,26 +130,49 @@ public class CertificateLoader {
     }
 
     // ✅ Get Alias (Certificate Name) from Thumbprint
+    // public static String getAliasByThumbprint(String thumbprint) throws Exception {
+    //     KeyStore keyStore = KeyStore.getInstance("Windows-MY");
+    //     keyStore.load(null, null); // Load the Windows Certificate Store
+
+    //     Enumeration<String> aliases = keyStore.aliases();
+    //     while (aliases.hasMoreElements()) {
+    //         String alias = aliases.nextElement();
+    //         System.out.println("alias: >>>>>>>>>> " + alias);
+    //         Certificate cert = keyStore.getCertificate(alias);
+
+    //         if (cert instanceof X509Certificate) {
+    //             X509Certificate x509Cert = (X509Certificate) cert;
+    //             String certThumbprint = getThumbprint(x509Cert); // Compute thumbprint
+
+    //             if (thumbprint.equalsIgnoreCase(certThumbprint)) {
+    //                 return alias; // ✅ Return the alias if thumbprint matches
+    //             }
+    //         }
+    //     }
+    //     throw new Exception("Certificate with given thumbprint not found");
+    // }
+    
     public static String getAliasByThumbprint(String thumbprint) throws Exception {
         KeyStore keyStore = KeyStore.getInstance("Windows-MY");
         keyStore.load(null, null); // Load the Windows Certificate Store
-
+    
         Enumeration<String> aliases = keyStore.aliases();
         while (aliases.hasMoreElements()) {
             String alias = aliases.nextElement();
             Certificate cert = keyStore.getCertificate(alias);
-
+    
             if (cert instanceof X509Certificate) {
                 X509Certificate x509Cert = (X509Certificate) cert;
                 String certThumbprint = getThumbprint(x509Cert); // Compute thumbprint
-
+    
+                System.out.println("Checking alias: " + alias + " | Thumbprint: " + certThumbprint);
+    
                 if (thumbprint.equalsIgnoreCase(certThumbprint)) {
-                    return alias; // ✅ Return the alias if thumbprint matches
+                    return alias; // ✅ Return the correct alias
                 }
             }
         }
         throw new Exception("Certificate with given thumbprint not found");
     }
     
-
 }

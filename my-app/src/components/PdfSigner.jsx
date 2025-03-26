@@ -17,9 +17,9 @@ export default function PdfSigner() {
   const fetchDscList = async () => {
     try {
       const response = await axios.get("http://localhost:8081/api/pdf/dsc-list");
-      setDscList(response.data);
       if (response.data.length > 0) {
-        setSelectedDsc(response.data[0].thumbprint); // Default to first available DSC
+        setDscList(response.data);
+        setSelectedDsc(response.data[0].thumbprint);
       }
     } catch (error) {
       console.error("Error fetching DSCs:", error);
@@ -118,17 +118,25 @@ export default function PdfSigner() {
 
         {/* ✅ DSC Selection Dropdown */}
         <select
-          onChange={(e) => setSelectedDsc(e.target.value)} // ✅ Store only alias
+          onChange={(e) => setSelectedDsc(e.target.value)}
           value={selectedDsc}
-          className="mb-3 border p-2 w-full"
+          className="mb-3 border p-2 w-full max-w-full overflow-hidden text-ellipsis"
         >
-          <option value="" disabled>Select certificate</option>
-          {dscList.map((dsc) => ( 
-            <option key={dsc.thumbprint} value={dsc.thumbprint}> 
-              {dsc.alias} - {dsc.thumbprint.slice(-4)} 
-         
-            </option>
-          ))}
+          <option value="">Select certificate</option>
+          {dscList.map((dsc) => {
+            // Extract CN (Common Name)
+            const match = dsc.name.match(/CN=([^,]*)/);
+            const commonName = match ? match[1] : dsc.name;
+            
+            // Extract last 4 digits of the thumbprint
+            const thumbprintLast4 = dsc.thumbprint.slice(-4);
+            
+            return (
+              <option key={dsc.thumbprint} value={dsc.thumbprint}>
+                {commonName} - {thumbprintLast4}
+              </option>
+            );
+          })}
         </select>
 
         <button

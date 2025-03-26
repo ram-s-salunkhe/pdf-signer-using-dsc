@@ -31,6 +31,11 @@ public class PdfSigningController {
         this.pdfSigningService = pdfSigningService;
     }
 
+    // Method to remove unwanted suffixes like "(1)"
+    public static String normalizeAlias(String alias) {
+        return alias.replaceAll("\\s*\\(\\d+\\)$", ""); // Removes (1), (2), etc.
+    }
+
   
     // ✅ Fetch available certificates with thumbprints
 @GetMapping("/dsc-list")
@@ -90,18 +95,20 @@ public ResponseEntity<String> selectCertificate(@RequestBody Map<String, String>
         String alias;
         try {
             alias = CertificateLoader.getAliasByThumbprint(thumbprint);
+            System.out.println("Alias:  >>>" + alias);           
         } catch (Exception e) {
             log.error("Error fetching alias by thumbprint: {}", e.getMessage());
             return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR)
             .body(("Error fetching alias: " + e.getMessage()).getBytes());
         }
-       
 
+        String cleanAlias = normalizeAlias(alias);
+       
             if (files.length == 1) {
                 // ✅ Single File Case: Return as PDF
                 MultipartFile file = files[0];
                 try {
-                    byte[] signedPdf = pdfSigningService.signPdf(file.getBytes(), alias, thumbprint, position);
+                    byte[] signedPdf = pdfSigningService.signPdf(file.getBytes(), cleanAlias, thumbprint, position);
 
                     String originalFilename = file.getOriginalFilename();
                     if (originalFilename == null) {
@@ -134,7 +141,7 @@ public ResponseEntity<String> selectCertificate(@RequestBody Map<String, String>
             try (ZipOutputStream zipOut = new ZipOutputStream(baos)) {
                 for (MultipartFile file : files) {
                     try {
-                        byte[] signedPdf = pdfSigningService.signPdf(file.getBytes(), alias, thumbprint, position);
+                        byte[] signedPdf = pdfSigningService.signPdf(file.getBytes(), cleanAlias, thumbprint, position);
                         String originalFilename = file.getOriginalFilename();
                         if (originalFilename == null) {
                             originalFilename = "signed_document.pdf";
