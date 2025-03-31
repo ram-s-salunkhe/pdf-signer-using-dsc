@@ -13,7 +13,7 @@ public class DemoApplication {
 
     public static void main(String[] args) {
         SpringApplication.run(DemoApplication.class, args);
-
+        
         // Open the default web browser after the server starts
         try {
             String url = "http://localhost:8081"; // Change the port if needed
