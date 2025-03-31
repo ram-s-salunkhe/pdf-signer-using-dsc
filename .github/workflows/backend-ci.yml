@@ -1,32 +1,38 @@
 name: Backend CI
 
 on:
-    push:
-        paths: 
-         - 'backend/**'  # Runs only if changes happen in backend folder
-       pull_request: 
-         branches: 
-             - main  # Runs on pull requests to the main branch
+  push:
+    paths:
+      - "backend/**" # Runs only if changes happen in backend folder
+  pull_request:
+    branches:
+      - main # Runs on pull requests to the main branch
 
 jobs:
   build:
     runs-on: ubuntu-latest
     defaults:
       run:
-        working-directory: backend  # Move inside backend folder
+        working-directory: backend # Move inside backend folder
     steps:
-        - name: Checkout code
-          uses: actions/checkout@v3
+      - name: Checkout code
+        uses: actions/checkout@v3
 
-        - name: Set Up JDK
-          uses: actions/setup-java@v3
-          with:
-            distriution: 'temurin'
-            java-version: '8'  # Specify the Java version you need
-            
-        - name: Build with Maven
-          run: mvn clean package
-          working-directory: backend
-        - name: Login to DockerHub  
-          run: echo "${{ secrets.DOCKER_PASSWORD }}" | docker login -u "${{ secrets.DOCKER_USERNAME }}" --password-stdin
-    
+      - name: Set Up JDK
+        uses: actions/setup-java@v3
+        with:
+          distriution: "temurin"
+          java-version: "8" # Specify the Java version you need
+
+      - name: Build with Maven
+        run: mvn clean package
+        working-directory: backend
+
+      - name: Login to Docker Hub
+        run: echo "${{ secrets.DOCKER_PASSWORD }}" | docker login -u "${{ secrets.DOCKER_USERNAME }}" --password-stdin
+
+      - name: Build and Push Docker Image
+        run: |
+          docker build -t dsc-backend .
+          docker tag dsc-backend pawanramteke/dsc-backend:latest
+          docker push pawanramteke/dsc-backend:latest
