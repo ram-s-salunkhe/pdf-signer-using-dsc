@@ -1,0 +1,24 @@
+name: FRONTEND CI
+on:
+  push:
+   paths: 
+    - 'frontend/**'  # Runs only if changes happen in frontend folder
+  pull_request: 
+    branches: 
+        - main  # Runs on pull requests to the main branch
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: frontend  # Move inside frontend folder
+    steps:
+        - name: Checkout code
+          uses: actions/checkout@v2
+
+        - name: Install Dependencies
+          run: npm install 
+
+        - name: Build React App
+          run: npm run build
