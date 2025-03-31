@@ -7,15 +7,16 @@ import java.io.IOException;
 import java.security.GeneralSecurityException;
 import java.security.PrivateKey;
 import java.security.Provider;
-import java.security.cert.Certificate;
-import java.util.Calendar;
-import java.util.Arrays;
 import java.security.Security;
+import java.security.cert.Certificate;
+import java.util.Arrays;
+import java.util.Calendar;
 
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.springframework.stereotype.Service;
 
 import com.example.config.CertificateLoader;
-// import com.example.utils.SecurityProviderUtil;
 import com.itextpdf.forms.fields.properties.SignedAppearanceText;
 import com.itextpdf.forms.form.element.SignatureFieldAppearance;
 // import com.itextpdf.forms.fields.properties.SignedAppearanceText;
@@ -39,8 +40,8 @@ import lombok.extern.slf4j.Slf4j;
 @Service
 @Slf4j
 public class PdfSigningService {
-    private final CertificateLoader certificateLoader;
-
+    private final CertificateLoader  certificateLoader;
+    private static final Logger log = LoggerFactory.getLogger(PdfSigningService.class);
     public PdfSigningService(CertificateLoader certificateLoader) {
         this.certificateLoader = certificateLoader;
         try {
