@@ -1,8 +1,13 @@
 package com.example.config;
+ 
+import lombok.extern.slf4j.*;
 
-import lombok.extern.slf4j.Slf4j;
-
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.springframework.stereotype.Component;
+
+import com.example.services.PdfSigningService;
+
 import java.io.IOException;
 import java.security.KeyStore;
 import java.security.KeyStoreException;
@@ -23,7 +28,7 @@ import java.util.Enumeration;
 public class CertificateLoader {
 
     private static final String KEYSTORE_TYPE = "Windows-MY";
-
+    private static final Logger log = LoggerFactory.getLogger(CertificateLoader.class);
     public PrivateKey loadPrivateKey(String alias) throws KeyStoreException, CertificateException, IOException,
             NoSuchAlgorithmException, UnrecoverableKeyException {
         KeyStore keyStore = KeyStore.getInstance(KEYSTORE_TYPE);
