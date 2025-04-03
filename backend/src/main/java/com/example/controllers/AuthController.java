@@ -3,7 +3,8 @@ package com.example.controllers;
 import org.springframework.web.bind.annotation.*;
 import org.springframework.core.io.ClassPathResource;
 import java.nio.charset.StandardCharsets;
-import java.nio.file.Files;
+import java.io.ByteArrayOutputStream;
+import java.io.InputStream;
 import java.security.*;
 import java.security.spec.*;
 import java.util.Base64;
@@ -29,19 +30,31 @@ public class AuthController {
 
     private PublicKey loadPublicKey() throws Exception {
         ClassPathResource resource = new ClassPathResource("keys/public_key.pem");
-        byte[] keyBytes = Files.readAllBytes(resource.getFile().toPath());
-
-        String publicKeyPEM = new String(keyBytes, StandardCharsets.UTF_8)
-                .replace("-----BEGIN PUBLIC KEY-----", "")
-                .replace("-----END PUBLIC KEY-----", "")
-                .replaceAll("\\s", "");
-
-        byte[] decodedKey = Base64.getDecoder().decode(publicKeyPEM);
-        X509EncodedKeySpec keySpec = new X509EncodedKeySpec(decodedKey);
-        KeyFactory keyFactory = KeyFactory.getInstance("RSA");
-
-        return keyFactory.generatePublic(keySpec);
+    
+        // Read InputStream manually (compatible with Java 8)
+        try (InputStream inputStream = resource.getInputStream()) {
+            ByteArrayOutputStream buffer = new ByteArrayOutputStream();
+            byte[] data = new byte[1024];
+            int bytesRead;
+            while ((bytesRead = inputStream.read(data, 0, data.length)) != -1) {
+                buffer.write(data, 0, bytesRead);
+            }
+            buffer.flush();
+            byte[] keyBytes = buffer.toByteArray();
+    
+            String publicKeyPEM = new String(keyBytes, StandardCharsets.UTF_8)
+                    .replace("-----BEGIN PUBLIC KEY-----", "")
+                    .replace("-----END PUBLIC KEY-----", "")
+                    .replaceAll("\\s", "");
+    
+            byte[] decodedKey = Base64.getDecoder().decode(publicKeyPEM);
+            X509EncodedKeySpec keySpec = new X509EncodedKeySpec(decodedKey);
+            KeyFactory keyFactory = KeyFactory.getInstance("RSA");
+    
+            return keyFactory.generatePublic(keySpec);
+        }
     }
+    
 
     private boolean verifySignature(String data, String signedData, PublicKey publicKey) {
         try {

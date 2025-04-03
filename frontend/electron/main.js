@@ -80,6 +80,10 @@ if (!gotTheLock) {
                 backendProcess = spawn(backendPath, [], {
                     detached: true,
                     stdio: "ignore",
+                    env: {
+                        ...process.env,
+                        JAVA_HOME: join(__dirname, "jre")  // Set JAVA_HOME for the bundled JRE
+                    }
                 });
             } else {
                 backendProcess = spawn(backendPath, [], { windowsHide: true });

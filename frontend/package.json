@@ -46,6 +46,16 @@
     "directories": {
       "output": "release"
     },
+    "extraFiles": [
+      {
+        "from": "electron/AuthPdfSigner.exe",
+        "to": "electron/AuthPdfSigner.exe"
+      },
+      {
+        "from": "electron/jre",
+        "to": "electron/jre"
+      }
+    ],
     "files": [
       "dist/**/*",
       "electron/**/*",
