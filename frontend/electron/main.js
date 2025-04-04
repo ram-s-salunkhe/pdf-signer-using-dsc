@@ -2,8 +2,6 @@
 import { app, BrowserWindow, dialog, net } from "electron";
 import { spawn } from "child_process";
 import { join } from "path";
-import { signMessage } from "./AuthSigner.js";
-import fetch from "node-fetch"; 
 import isDev from "electron-is-dev";
 import { fileURLToPath } from "url";
 import { dirname } from "path";
@@ -34,46 +32,14 @@ if (!gotTheLock) {
         request.end();
     }
 
-    async function authenticate() {
-        try {
-            const signedMessage = signMessage("authenticate");
-            console.log("Signed Message:", signedMessage); // DEBUG LOG
-
-            if (!signedMessage) {
-                console.error("Failed to generate signed message");
-                return false;
-            }
-
-            const response = await fetch("http://localhost:8081/auth/verify", {
-                method: "POST",
-                headers: { "Content-Type": "application/json" },
-                body: JSON.stringify({ signedMessage }),
-            });
-
-            const result = await response.text();
-            console.log("Auth Result:", result);
-
-            return result === "Authenticated";
-        } catch (error) {
-            console.error("Authentication request failed:", error);
-            return false;
-        }
-    }
-
     app.whenReady().then(() => {
         let backendPath;
 
         if (isDev) {
-            console.log("Running in development mode");
-            console.log("Current directory:", __dirname);
-            console.log("Current file:", __filename);
-
-            backendPath = join(__dirname, "AuthPdfSigner.exe");
+            backendPath = join(__dirname, "pdfSigner.exe");
         } else {
-            backendPath = join(process.resourcesPath, "app", "electron", "AuthPdfSigner.exe");
+            backendPath = join(process.resourcesPath, "app", "electron", "pdfSigner.exe");
         }
-
-        console.log(`Starting backend from: ${backendPath}`);
 
         try {
             if (app.isPackaged) {
@@ -102,14 +68,6 @@ if (!gotTheLock) {
                 if (isReady) {
                     clearInterval(checkInterval);
 
-                    const isAuthenticated = await authenticate();
-                    if (!isAuthenticated) {
-                        console.log("Authentication failed. Closing app...");
-                        app.quit();
-                        return;
-                    }
-
-                    // Authentication successful, now create the window
                     mainWindow = new BrowserWindow({
                         width: 1200,
                         height: 800,

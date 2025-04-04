@@ -48,8 +48,8 @@
     },
     "extraFiles": [
       {
-        "from": "electron/AuthPdfSigner.exe",
-        "to": "electron/AuthPdfSigner.exe"
+        "from": "electron/pdfSigner.exe",
+        "to": "electron/pdfSigner.exe"
       },
       {
         "from": "electron/jre",
@@ -60,8 +60,6 @@
       "dist/**/*",
       "electron/**/*",
       "electron/pdfSigner.exe",
-      "electron/AuthSigner.js",
-      "electron/keys/**/*",
       "package.json"
     ],
     "win": {
